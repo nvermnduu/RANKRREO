@@ -1,27 +1,12 @@
-// 🔹 Configuración Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyA3vpdSZTU9reI6HEobEFD1MhykuhJy3-4",
-  authDomain: "rankrreo.firebaseapp.com",
-  projectId: "rankrreo",
-  storageBucket: "rankrreo.firebasestorage.app",
-  messagingSenderId: "227814567248",
-  appId: "1:227814567248:web:e915b5727298b5c9f81055",
-  measurementId: "G-017P4MB7H4"
-};
-
-// Inicializar Firebase
-firebase.initializeApp(firebaseConfig);
-// const analytics = firebase.analytics(); // ⚠️ Desactivado para que funcione en cualquier navegador
-const db = firebase.firestore();
-
 let usuarioActual = null;
+let lugares = JSON.parse(localStorage.getItem("lugares")) || [];
 
 // LOGIN
 function login() {
   const nombre = document.getElementById("nombreUsuario").value.trim();
   const emoji = document.getElementById("emojiUsuario").value.trim();
 
-  if (!nombre || !emoji) return;
+  if (!nombre || !emoji) return alert("Pon nombre y emoji!");
 
   usuarioActual = { nombre, emoji };
   localStorage.setItem("usuario", JSON.stringify(usuarioActual));
@@ -46,7 +31,7 @@ function iniciarApp() {
   document.getElementById("bienvenida").innerText =
     `Bienvenido ${usuarioActual.emoji} ${usuarioActual.nombre}`;
 
-  escucharDatos();
+  renderLugares();
 }
 
 // AGREGAR LUGAR
@@ -54,73 +39,91 @@ function agregarLugar() {
   const nombre = document.getElementById("lugar").value.trim();
   if (!nombre) return;
 
-  db.collection("lugares").add({ nombre, comidas: [] });
+  lugares.push({ nombre, comidas: [] });
   document.getElementById("lugar").value = "";
+
+  guardarYRender();
 }
 
 // AGREGAR COMIDA
-function agregarComida(id) {
-  const nombre = document.getElementById(`comida-${id}`).value.trim();
-  const puntuacion = document.getElementById(`puntuacion-${id}`).value.trim();
+function agregarComida(lugarIndex) {
+  const nombre = document.getElementById(`comida-${lugarIndex}`).value.trim();
+  const puntuacion = parseInt(document.getElementById(`puntuacion-${lugarIndex}`).value);
 
   if (!nombre || !puntuacion) return;
 
-  const lugarRef = db.collection("lugares").doc(id);
+  lugares[lugarIndex].comidas.push({
+    nombre,
+    puntuacion,
+    usuario: usuarioActual.nombre,
+    emoji: usuarioActual.emoji
+  });
 
-  lugarRef.get().then(docSnap => {
-    if (!docSnap.exists) return;
+  document.getElementById(`comida-${lugarIndex}`).value = "";
+  document.getElementById(`puntuacion-${lugarIndex}`).value = "";
 
-    const data = docSnap.data();
-    const comidas = data.comidas || [];
+  guardarYRender();
+}
 
-    comidas.push({
-      nombre,
-      puntuacion: parseInt(puntuacion),
-      usuario: usuarioActual.nombre,
-      emoji: usuarioActual.emoji
-    });
+// ELIMINAR LUGAR
+function eliminarLugar(index) {
+  lugares.splice(index, 1);
+  guardarYRender();
+}
 
-    lugarRef.update({ comidas });
+// ELIMINAR COMIDA
+function eliminarComida(lugarIndex, comidaIndex) {
+  lugares[lugarIndex].comidas.splice(comidaIndex, 1);
+  guardarYRender();
+}
+
+// GUARDAR EN LOCAL Y RENDERIZAR
+function guardarYRender() {
+  localStorage.setItem("lugares", JSON.stringify(lugares));
+  renderLugares();
+}
+
+// RENDERIZAR
+function renderLugares() {
+  const contenedor = document.getElementById("lugares");
+  contenedor.innerHTML = "";
+
+  lugares.forEach((lugar, i) => {
+    const div = document.createElement("div");
+    div.className = "card";
+
+    let promedio = 0;
+    if (lugar.comidas.length > 0) {
+      const total = lugar.comidas.reduce((sum, c) => sum + c.puntuacion, 0);
+      promedio = (total / lugar.comidas.length).toFixed(1);
+    }
+
+    div.innerHTML = `
+      <h2>📍 ${lugar.nombre} ⭐ ${promedio} 
+      <button onclick="eliminarLugar(${i})">🗑️</button></h2>
+
+      <input id="comida-${i}" placeholder="Comida">
+      <input id="puntuacion-${i}" type="number" placeholder="Puntuación">
+      <button onclick="agregarComida(${i})">Agregar</button>
+
+      <ul>
+        ${lugar.comidas.map((c, ci) => `
+          <li>
+            ${c.nombre} - ⭐ ${c.puntuacion} (${c.emoji} ${c.usuario}) 
+            <button onclick="eliminarComida(${i}, ${ci})">🗑️</button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+
+    contenedor.appendChild(div);
   });
 }
 
-// ESCUCHAR DATOS EN TIEMPO REAL
-function escucharDatos() {
-  db.collection("lugares").onSnapshot(snapshot => {
-    const contenedor = document.getElementById("lugares");
-    contenedor.innerHTML = "";
+// AGREGAR LUGAR O COMIDA CON ENTER
+document.getElementById("lugar").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") agregarLugar();
+});
 
-    snapshot.forEach(docSnap => {
-      const lugar = docSnap.data();
-      const id = docSnap.id;
-
-      const div = document.createElement("div");
-      div.className = "card";
-
-      let promedio = 0;
-      if (lugar.comidas.length > 0) {
-        const total = lugar.comidas.reduce((sum, c) => sum + c.puntuacion, 0);
-        promedio = (total / lugar.comidas.length).toFixed(1);
-      }
-
-      div.innerHTML = `
-        <h2>📍 ${lugar.nombre} ⭐ ${promedio}</h2>
-
-        <input id="comida-${id}" placeholder="Comida">
-        <input id="puntuacion-${id}" type="number" placeholder="Puntuación">
-        <button onclick="agregarComida('${id}')">Agregar</button>
-
-        <ul>
-          ${(lugar.comidas || []).map(c => `
-            <li>${c.nombre} - ⭐ ${c.puntuacion} (${c.emoji} ${c.usuario})</li>
-          `).join("")}
-        </ul>
-      `;
-
-      contenedor.appendChild(div);
-    });
-  });
-}
-
-// INICIAR AUTO LOGIN
+// AUTO LOGIN AL CARGAR
 autoLogin();
