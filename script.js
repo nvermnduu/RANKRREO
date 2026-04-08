@@ -1,29 +1,34 @@
-// 🔹 Configuración Firebase
+// ⚡ Usamos módulos modernos de Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA3vpdSZTU9reI6HEobEFD1MhykuhJy3-4",
   authDomain: "rankrreo.firebaseapp.com",
   projectId: "rankrreo",
-  storageBucket: "rankrreo.appspot.com",
+  storageBucket: "rankrreo.firebasestorage.app",
   messagingSenderId: "227814567248",
   appId: "1:227814567248:web:e915b5727298b5c9f81055",
   measurementId: "G-017P4MB7H4"
 };
 
-// Inicializar Firebase clásico
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
 
 let usuarioActual = null;
 
 // LOGIN
 function login() {
-  let nombre = document.getElementById("nombreUsuario").value.trim();
-  let emoji = document.getElementById("emojiUsuario").value.trim();
+  const nombre = document.getElementById("nombreUsuario").value.trim();
+  const emoji = document.getElementById("emojiUsuario").value.trim();
 
-  if (!nombre || !emoji) return alert("Debes poner nombre y emoji");
+  if (!nombre || !emoji) return;
 
   usuarioActual = { nombre, emoji };
-
   localStorage.setItem("usuario", JSON.stringify(usuarioActual));
 
   iniciarApp();
@@ -31,7 +36,7 @@ function login() {
 
 // AUTO LOGIN
 function autoLogin() {
-  let data = localStorage.getItem("usuario");
+  const data = localStorage.getItem("usuario");
   if (data) {
     usuarioActual = JSON.parse(data);
     iniciarApp();
@@ -50,61 +55,57 @@ function iniciarApp() {
 }
 
 // AGREGAR LUGAR
-function agregarLugar() {
-  let nombre = document.getElementById("lugar").value.trim();
+async function agregarLugar() {
+  const nombre = document.getElementById("lugar").value.trim();
   if (!nombre) return;
 
-  db.collection("lugares").add({
-    nombre,
-    comidas: []
-  });
-
+  await addDoc(collection(db, "lugares"), { nombre, comidas: [] });
   document.getElementById("lugar").value = "";
 }
 
 // AGREGAR COMIDA
-function agregarComida(id) {
-  let nombre = document.getElementById(`comida-${id}`).value.trim();
-  let puntuacion = document.getElementById(`puntuacion-${id}`).value.trim();
+async function agregarComida(id) {
+  const nombre = document.getElementById(`comida-${id}`).value.trim();
+  const puntuacion = document.getElementById(`puntuacion-${id}`).value.trim();
 
   if (!nombre || !puntuacion) return;
 
-  let ref = db.collection("lugares").doc(id);
+  const lugarRef = doc(db, "lugares", id);
+  const lugarSnap = await getDoc(lugarRef);
 
-  ref.get().then(doc => {
-    let data = doc.data();
-    let comidas = data.comidas || [];
+  if (!lugarSnap.exists()) return;
 
-    comidas.push({
-      nombre,
-      puntuacion: parseInt(puntuacion),
-      usuario: usuarioActual.nombre,
-      emoji: usuarioActual.emoji
-    });
+  const data = lugarSnap.data();
+  const comidas = data.comidas || [];
 
-    ref.update({ comidas });
+  comidas.push({
+    nombre,
+    puntuacion: parseInt(puntuacion),
+    usuario: usuarioActual.nombre,
+    emoji: usuarioActual.emoji
   });
 
-  document.getElementById(`comida-${id}`).value = "";
-  document.getElementById(`puntuacion-${id}`).value = "";
+  await updateDoc(lugarRef, { comidas });
 }
 
-// ESCUCHAR CAMBIOS EN TIEMPO REAL
+// ESCUCHAR DATOS EN TIEMPO REAL
 function escucharDatos() {
-  db.collection("lugares").onSnapshot(snapshot => {
-    let contenedor = document.getElementById("lugares");
+  const lugaresCol = collection(db, "lugares");
+
+  onSnapshot(lugaresCol, (snapshot) => {
+    const contenedor = document.getElementById("lugares");
     contenedor.innerHTML = "";
 
-    snapshot.forEach(doc => {
-      let lugar = doc.data();
-      let id = doc.id;
+    snapshot.forEach(docSnap => {
+      const lugar = docSnap.data();
+      const id = docSnap.id;
 
-      let div = document.createElement("div");
+      const div = document.createElement("div");
       div.className = "card";
 
       let promedio = 0;
       if (lugar.comidas.length > 0) {
-        let total = lugar.comidas.reduce((sum, c) => sum + c.puntuacion, 0);
+        const total = lugar.comidas.reduce((sum, c) => sum + c.puntuacion, 0);
         promedio = (total / lugar.comidas.length).toFixed(1);
       }
 
