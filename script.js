@@ -1,4 +1,4 @@
-// Configuración Firebase
+// 🔹 Configuración Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA3vpdSZTU9reI6HEobEFD1MhykuhJy3-4",
   authDomain: "rankrreo.firebaseapp.com",
@@ -11,7 +11,7 @@ const firebaseConfig = {
 
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
-const analytics = firebase.analytics();
+// const analytics = firebase.analytics(); // ⚠️ Desactivado para que funcione en cualquier navegador
 const db = firebase.firestore();
 
 let usuarioActual = null;
