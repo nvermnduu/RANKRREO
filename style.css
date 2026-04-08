@@ -10,7 +10,7 @@ h1 {
   color: #333;
 }
 
-input, button {
+input, select, button {
   padding: 10px;
   margin: 5px;
   border: none;
@@ -40,10 +40,26 @@ button:hover {
   box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
 }
 
+h2 {
+  cursor: pointer;
+}
+
 li {
   list-style: none;
   margin: 5px 0;
   padding: 8px;
   background: #f5f5f5;
   border-radius: 8px;
+  word-wrap: break-word;
+}
+
+@media (max-width: 400px) {
+  input, select, button {
+    font-size: 16px;
+    padding: 8px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
 }
