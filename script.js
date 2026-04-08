@@ -1,145 +1,131 @@
-// Cargar datos
-let lugares = JSON.parse(localStorage.getItem("lugares")) || [];
-let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [];
+// 🔹 Configuración Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyA3vpdSZTU9reI6HEobEFD1MhykuhJy3-4",
+  authDomain: "rankrreo.firebaseapp.com",
+  projectId: "rankrreo",
+  storageBucket: "rankrreo.appspot.com",
+  messagingSenderId: "227814567248",
+  appId: "1:227814567248:web:e915b5727298b5c9f81055",
+  measurementId: "G-017P4MB7H4"
+};
 
-// ENTER para agregar lugar
-document.getElementById("lugar").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") agregarLugar();
-});
+// Inicializar Firebase clásico
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-// Crear usuario
-function agregarUsuario() {
-  let nombre = prompt("Tu nombre:");
-  let emoji = prompt("Elige un emoji (😎🔥🍕):");
+let usuarioActual = null;
 
-  if (!nombre || !emoji) return;
+// LOGIN
+function login() {
+  let nombre = document.getElementById("nombreUsuario").value.trim();
+  let emoji = document.getElementById("emojiUsuario").value.trim();
 
-  usuarios.push({ nombre, emoji });
-  localStorage.setItem("usuarios", JSON.stringify(usuarios));
+  if (!nombre || !emoji) return alert("Debes poner nombre y emoji");
 
-  alert("Usuario creado!");
-  mostrarLugares();
+  usuarioActual = { nombre, emoji };
+
+  localStorage.setItem("usuario", JSON.stringify(usuarioActual));
+
+  iniciarApp();
 }
 
-// Agregar lugar
+// AUTO LOGIN
+function autoLogin() {
+  let data = localStorage.getItem("usuario");
+  if (data) {
+    usuarioActual = JSON.parse(data);
+    iniciarApp();
+  }
+}
+
+// INICIAR APP
+function iniciarApp() {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  document.getElementById("bienvenida").innerText =
+    `Bienvenido ${usuarioActual.emoji} ${usuarioActual.nombre}`;
+
+  escucharDatos();
+}
+
+// AGREGAR LUGAR
 function agregarLugar() {
-  let input = document.getElementById("lugar");
-  let nombre = input.value.trim();
+  let nombre = document.getElementById("lugar").value.trim();
+  if (!nombre) return;
 
-  if (nombre === "") return;
-
-  lugares.push({
+  db.collection("lugares").add({
     nombre,
     comidas: []
   });
 
-  input.value = "";
-  guardar();
-  mostrarLugares();
+  document.getElementById("lugar").value = "";
 }
 
-// Borrar lugar
-function borrarLugar(index) {
-  lugares.splice(index, 1);
-  guardar();
-  mostrarLugares();
-}
+// AGREGAR COMIDA
+function agregarComida(id) {
+  let nombre = document.getElementById(`comida-${id}`).value.trim();
+  let puntuacion = document.getElementById(`puntuacion-${id}`).value.trim();
 
-// Agregar comida
-function agregarComida(index) {
-  let nombre = document.getElementById(`comida-${index}`).value.trim();
-  let puntuacion = document.getElementById(`puntuacion-${index}`).value;
-  let usuarioNombre = document.getElementById(`usuario-${index}`).value;
+  if (!nombre || !puntuacion) return;
 
-  if (!nombre || !puntuacion || !usuarioNombre) return;
+  let ref = db.collection("lugares").doc(id);
 
-  let usuarioObj = usuarios.find(u => u.nombre === usuarioNombre);
+  ref.get().then(doc => {
+    let data = doc.data();
+    let comidas = data.comidas || [];
 
-  lugares[index].comidas.push({
-    nombre,
-    puntuacion: parseInt(puntuacion),
-    usuario: usuarioObj.nombre,
-    emoji: usuarioObj.emoji
+    comidas.push({
+      nombre,
+      puntuacion: parseInt(puntuacion),
+      usuario: usuarioActual.nombre,
+      emoji: usuarioActual.emoji
+    });
+
+    ref.update({ comidas });
   });
 
-  guardar();
-  mostrarLugares();
+  document.getElementById(`comida-${id}`).value = "";
+  document.getElementById(`puntuacion-${id}`).value = "";
 }
 
-// Borrar comida
-function borrarComida(lugarIndex, comidaIndex) {
-  lugares[lugarIndex].comidas.splice(comidaIndex, 1);
-  guardar();
-  mostrarLugares();
-}
+// ESCUCHAR CAMBIOS EN TIEMPO REAL
+function escucharDatos() {
+  db.collection("lugares").onSnapshot(snapshot => {
+    let contenedor = document.getElementById("lugares");
+    contenedor.innerHTML = "";
 
-// Promedio
-function calcularPromedio(comidas) {
-  if (comidas.length === 0) return 0;
-  let total = comidas.reduce((sum, c) => sum + c.puntuacion, 0);
-  return (total / comidas.length).toFixed(1);
-}
+    snapshot.forEach(doc => {
+      let lugar = doc.data();
+      let id = doc.id;
 
-// Mostrar/ocultar
-function toggle(index) {
-  let el = document.getElementById(`comidas-${index}`);
-  el.style.display = el.style.display === "none" ? "block" : "none";
-}
+      let div = document.createElement("div");
+      div.className = "card";
 
-// Mostrar todo
-function mostrarLugares() {
-  let contenedor = document.getElementById("lugares");
-  contenedor.innerHTML = "";
+      let promedio = 0;
+      if (lugar.comidas.length > 0) {
+        let total = lugar.comidas.reduce((sum, c) => sum + c.puntuacion, 0);
+        promedio = (total / lugar.comidas.length).toFixed(1);
+      }
 
-  lugares.forEach((lugar, i) => {
-    let div = document.createElement("div");
-    div.className = "card";
+      div.innerHTML = `
+        <h2>📍 ${lugar.nombre} ⭐ ${promedio}</h2>
 
-    let promedio = calcularPromedio(lugar.comidas);
-
-    div.innerHTML = `
-      <h2 onclick="toggle(${i})">📍 ${lugar.nombre} ⭐ ${promedio}</h2>
-      <button onclick="borrarLugar(${i})">🗑️ Borrar</button>
-
-      <div id="comidas-${i}" style="display:none;">
-        <select id="usuario-${i}">
-          <option value="">Selecciona usuario</option>
-          ${usuarios.map(u => `<option value="${u.nombre}">${u.emoji} ${u.nombre}</option>`).join("")}
-        </select>
-
-        <input type="text" placeholder="Comida" id="comida-${i}">
-        <input type="number" placeholder="Puntuación" id="puntuacion-${i}">
-        <button onclick="agregarComida(${i})">Agregar</button>
+        <input id="comida-${id}" placeholder="Comida">
+        <input id="puntuacion-${id}" type="number" placeholder="Puntuación">
+        <button onclick="agregarComida('${id}')">Agregar</button>
 
         <ul>
-          ${lugar.comidas.map((c, j) => `
-            <li>
-              ${c.nombre} - ⭐ ${c.puntuacion} (${c.emoji} ${c.usuario})
-              <button onclick="borrarComida(${i}, ${j})">❌</button>
-            </li>
+          ${(lugar.comidas || []).map(c => `
+            <li>${c.nombre} - ⭐ ${c.puntuacion} (${c.emoji} ${c.usuario})</li>
           `).join("")}
         </ul>
-      </div>
-    `;
+      `;
 
-    contenedor.appendChild(div);
-
-    // ENTER para comida
-    setTimeout(() => {
-      let comidaInput = document.getElementById(`comida-${i}`);
-      if (comidaInput) {
-        comidaInput.addEventListener("keypress", function(e) {
-          if (e.key === "Enter") agregarComida(i);
-        });
-      }
-    }, 0);
+      contenedor.appendChild(div);
+    });
   });
 }
 
-// Guardar
-function guardar() {
-  localStorage.setItem("lugares", JSON.stringify(lugares));
-}
-
-// Iniciar
-mostrarLugares();
+// INICIAR AUTO LOGIN
+autoLogin();
