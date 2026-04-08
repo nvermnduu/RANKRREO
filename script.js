@@ -1,9 +1,4 @@
-// ⚡ Usamos módulos modernos de Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
-import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-// Configuración de Firebase
+// Configuración Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA3vpdSZTU9reI6HEobEFD1MhykuhJy3-4",
   authDomain: "rankrreo.firebaseapp.com",
@@ -15,9 +10,9 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const db = firebase.firestore();
 
 let usuarioActual = null;
 
@@ -55,44 +50,43 @@ function iniciarApp() {
 }
 
 // AGREGAR LUGAR
-async function agregarLugar() {
+function agregarLugar() {
   const nombre = document.getElementById("lugar").value.trim();
   if (!nombre) return;
 
-  await addDoc(collection(db, "lugares"), { nombre, comidas: [] });
+  db.collection("lugares").add({ nombre, comidas: [] });
   document.getElementById("lugar").value = "";
 }
 
 // AGREGAR COMIDA
-async function agregarComida(id) {
+function agregarComida(id) {
   const nombre = document.getElementById(`comida-${id}`).value.trim();
   const puntuacion = document.getElementById(`puntuacion-${id}`).value.trim();
 
   if (!nombre || !puntuacion) return;
 
-  const lugarRef = doc(db, "lugares", id);
-  const lugarSnap = await getDoc(lugarRef);
+  const lugarRef = db.collection("lugares").doc(id);
 
-  if (!lugarSnap.exists()) return;
+  lugarRef.get().then(docSnap => {
+    if (!docSnap.exists) return;
 
-  const data = lugarSnap.data();
-  const comidas = data.comidas || [];
+    const data = docSnap.data();
+    const comidas = data.comidas || [];
 
-  comidas.push({
-    nombre,
-    puntuacion: parseInt(puntuacion),
-    usuario: usuarioActual.nombre,
-    emoji: usuarioActual.emoji
+    comidas.push({
+      nombre,
+      puntuacion: parseInt(puntuacion),
+      usuario: usuarioActual.nombre,
+      emoji: usuarioActual.emoji
+    });
+
+    lugarRef.update({ comidas });
   });
-
-  await updateDoc(lugarRef, { comidas });
 }
 
 // ESCUCHAR DATOS EN TIEMPO REAL
 function escucharDatos() {
-  const lugaresCol = collection(db, "lugares");
-
-  onSnapshot(lugaresCol, (snapshot) => {
+  db.collection("lugares").onSnapshot(snapshot => {
     const contenedor = document.getElementById("lugares");
     contenedor.innerHTML = "";
 
