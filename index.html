@@ -5,29 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RANKRREO</title>
   <link rel="stylesheet" href="style.css">
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 </head>
 <body>
 
   <h1>RANKEA ESTO😜</h1>
 
-  <!-- LOGIN SIMPLE -->
+  <!-- LOGIN -->
   <div id="login">
     <input type="text" id="nombreUsuario" placeholder="Tu nombre">
-    <input type="text" id="emojiUsuario" placeholder="Tu emoji 😎🔥🍕">
-    <button onclick="crearUsuario()">Entrar</button>
+    <input type="text" id="emojiUsuario" placeholder="Emoji 😎">
+    <button onclick="login()">Entrar</button>
   </div>
 
+  <!-- APP -->
   <div id="app" style="display:none;">
+    <p id="bienvenida"></p>
+
     <input type="text" id="lugar" placeholder="Nombre del lugar">
     <button onclick="agregarLugar()">Agregar lugar</button>
 
     <div id="lugares"></div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- Firebase SDKs -->
+  <script type="module" src="script.js"></script>
+
 </body>
 </html>
